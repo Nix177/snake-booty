@@ -105,6 +105,21 @@ function playBackgroundMusic() {
         currentMusicSource.connect(musicGainNode);
         musicGainNode.connect(audioContext.destination);
         
+        // Add onended handler to play next track
+        currentMusicSource.onended = async () => {
+            currentTrackIndex = (currentTrackIndex + 1) % musicTracks.length;
+            try {
+                const musicResponse = await fetch(musicTracks[currentTrackIndex]);
+                const musicArrayBuffer = await musicResponse.arrayBuffer();
+                musicBuffer = await audioContext.decodeAudioData(musicArrayBuffer);
+                playBackgroundMusic();
+            } catch (error) {
+                console.error('Error loading next track:', error);
+                currentTrackIndex = (currentTrackIndex + 1) % musicTracks.length;
+                playBackgroundMusic();
+            }
+        };
+        
         currentMusicSource.start(0);
         backgroundMusic = currentMusicSource;
     }
@@ -220,6 +235,60 @@ const headGeometry = new THREE.SphereGeometry(0.5, 32, 32);
 headGeometry.scale(1, 1.2, 1);  // Slightly elongated
 const head = new THREE.Mesh(headGeometry, skinMaterial);
 head.position.y = 3.5;
+
+// Add hair to the head
+const hairGroup = new THREE.Group();
+
+// Create main hair volume
+const hairMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1a1a,  // Dark black hair
+    roughness: 0.8,
+    metalness: 0.2
+});
+
+// Main hair volume on top
+const topHairGeometry = new THREE.SphereGeometry(0.55, 32, 32);
+topHairGeometry.scale(1, 0.7, 1);
+const topHair = new THREE.Mesh(topHairGeometry, hairMaterial);
+topHair.position.y = 0.2;
+hairGroup.add(topHair);
+
+// Side hair strands
+const sideHairGeometry = new THREE.CylinderGeometry(0.2, 0.15, 0.6, 32);
+const leftHair = new THREE.Mesh(sideHairGeometry, hairMaterial);
+const rightHair = new THREE.Mesh(sideHairGeometry, hairMaterial);
+
+leftHair.position.set(-0.4, -0.1, 0);
+rightHair.position.set(0.4, -0.1, 0);
+leftHair.rotation.z = 0.2;
+rightHair.rotation.z = -0.2;
+
+hairGroup.add(leftHair);
+hairGroup.add(rightHair);
+
+// Back hair
+const backHairGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+backHairGeometry.scale(1, 1.2, 0.5);
+const backHair = new THREE.Mesh(backHairGeometry, hairMaterial);
+backHair.position.set(0, -0.2, -0.3);
+hairGroup.add(backHair);
+
+// Add some hair spikes for style
+for (let i = 0; i < 8; i++) {
+    const spikeGeometry = new THREE.ConeGeometry(0.1, 0.3, 32);
+    const spike = new THREE.Mesh(spikeGeometry, hairMaterial);
+    const angle = (i / 8) * Math.PI * 2;
+    spike.position.set(
+        Math.cos(angle) * 0.3,
+        0.3,
+        Math.sin(angle) * 0.3
+    );
+    spike.rotation.x = Math.random() * 0.5 - 0.25;
+    spike.rotation.z = Math.random() * 0.5 - 0.25;
+    hairGroup.add(spike);
+}
+
+head.add(hairGroup);
 playerGroup.add(head);
 
 // Add face to the head
@@ -2209,6 +2278,24 @@ function updatePowerUps() {
                 shieldActive = true;
                 shieldTimer = currentTime + 5000;
                 applyPowerUpGlow('shield');
+                
+                // Add shield activation message
+                const message = document.createElement('div');
+                message.textContent = 'Shield Activated!';
+                message.style.position = 'absolute';
+                message.style.top = '50%';
+                message.style.left = '50%';
+                message.style.transform = 'translate(-50%, -50%)';
+                message.style.color = '#4169E1';
+                message.style.fontSize = '48px';
+                message.style.fontWeight = 'bold';
+                message.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+                document.body.appendChild(message);
+                
+                // Remove message after 2 seconds
+                setTimeout(() => {
+                    document.body.removeChild(message);
+                }, 2000);
             } else if (powerUp.userData.type === 'speed') {
                 // Apply speed boost
                 speedBoostActive = true;
